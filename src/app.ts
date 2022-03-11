@@ -3,7 +3,7 @@ import "dotenv/config";
 import { connectDB } from "./db/connect";
 import { swaggerPlugins } from "./plugins/swagger";
 import { todoRoute } from "./routes/todo";
-import { initAgenda } from "./queues/agenda";
+import { initAgenda } from "./cron-job/agenda";
 
 const server: Server = new Server({
     port: process.env.PORT,

@@ -2,13 +2,15 @@ import { Server } from "@hapi/hapi";
 import Joi from "joi";
 import {
     createTodo,
-    createTodoValidate,
     deleteTodo,
     getAllTodos,
     getTodoById,
     updateTodo,
+} from "../controllers/todo/todo";
+import {
+    createTodoValidate,
     updateTodoValidate,
-} from "../controllers/todo";
+} from "../controllers/todo/todo.validate";
 
 export const todoRoute = (server: Server) => {
     server.route({

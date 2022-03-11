@@ -1,7 +1,7 @@
-import { DoneCallback, Job } from "bull";
+import { Job } from "bull";
 import nodemailer from "nodemailer";
 
-export const emailProcess = async (job: Job, done: DoneCallback) => {
+export const emailProcess = async (job: Job) => {
     try {
         const transporter = nodemailer.createTransport({
             host: process.env.MAIL_HOST,
@@ -24,8 +24,6 @@ export const emailProcess = async (job: Job, done: DoneCallback) => {
         console.log("Message sent: %s", info.messageId);
 
         console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
-
-        done();
     } catch (error) {
         console.log(error);
     }

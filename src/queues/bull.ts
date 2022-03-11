@@ -1,22 +1,28 @@
-import Bull, { Job } from "bull";
+import Bull, { Job, JobOptions } from "bull";
 import { ITodo } from "../models/Todo";
 import { emailProcess } from "../services/emailProcess";
 
-//
 const emailQueue = new Bull("emailQueue", "redis://127.0.0.1:6379");
-const secondQueue = new Bull("emailQueue", "redis://127.0.0.1:6379");
+const dummyQueue = new Bull("emailQueue", "redis://127.0.0.1:6379");
 
-export const addEmailToQueue = async (todo: ITodo) => {
-    await emailQueue.add(todo);
+// Remember to handle jobs when completed or failed
+// A job still in queue when it completed
+const emailJobOptions: JobOptions = {
+    removeOnComplete: true,
+    removeOnFail: true,
 };
 
-export const addSecondToQueue = async (todo: ITodo) => {
-    await secondQueue.add(todo);
+export const addEmailToQueue = async (todo: ITodo) => {
+    await emailQueue.add(todo, emailJobOptions);
+};
+
+export const addDummyToQueue = async (todo: ITodo) => {
+    await dummyQueue.add(todo, emailJobOptions);
 };
 
 emailQueue.process(emailProcess);
 
-secondQueue.process(async (job: Job) => {
+dummyQueue.process(async (job: Job) => {
     console.log("Second queue");
 });
 
