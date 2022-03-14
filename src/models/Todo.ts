@@ -10,6 +10,7 @@ export interface ITodo extends mongoose.Document {
     completed: boolean;
     createdAt: Date;
     updateAt: Date;
+    createdBy: string;
 }
 
 const todoSchema = new mongoose.Schema(
@@ -25,6 +26,11 @@ const todoSchema = new mongoose.Schema(
         completed: {
             type: Boolean,
             default: false,
+        },
+        createdBy: {
+            type: mongoose.Types.ObjectId,
+            ref: "User",
+            require: true,
         },
     },
     { timestamps: true }

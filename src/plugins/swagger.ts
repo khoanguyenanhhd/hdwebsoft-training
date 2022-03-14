@@ -12,9 +12,22 @@ const swaggerOptions: HapiSwagger.RegisterOptions = {
     tags: [
         {
             name: "todos",
-            description: "Api todos.",
+        },
+        {
+            name: "auth",
+        },
+        {
+            name: "events",
         },
     ],
+    securityDefinitions: {
+        jwt: {
+            type: "apiKey",
+            name: "Authorization",
+            in: "header",
+        },
+    },
+    security: [{ jwt: [] }],
     documentationPath: "/docs",
 };
 

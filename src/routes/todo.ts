@@ -18,6 +18,7 @@ export const todoRoute = (server: Server) => {
         path: "/todos",
         options: {
             handler: createTodo,
+            auth: "jwt",
             tags: ["api", "todos"],
             description: "Create a todo",
             validate: createTodoValidate,
@@ -38,6 +39,7 @@ export const todoRoute = (server: Server) => {
         path: "/todos",
         options: {
             handler: getAllTodos,
+            auth: "jwt",
             tags: ["api", "todos"],
             description: "Get all todos",
             validate: {
@@ -54,6 +56,7 @@ export const todoRoute = (server: Server) => {
         path: "/todos/{id}",
         options: {
             handler: getTodoById,
+            auth: "jwt",
             tags: ["api", "todos"],
             description: "Get todo by id",
             validate: {
@@ -84,6 +87,7 @@ export const todoRoute = (server: Server) => {
         path: "/todos/{id}",
         options: {
             handler: updateTodo,
+            auth: "jwt",
             tags: ["api", "todos"],
             description: "Update todo by id",
             validate: updateTodoValidate,
@@ -110,6 +114,7 @@ export const todoRoute = (server: Server) => {
         path: "/todos/{id}",
         options: {
             handler: deleteTodo,
+            auth: "jwt",
             tags: ["api", "todos"],
             description: "Delete todo by id",
             validate: {

@@ -6,7 +6,7 @@ const emailQueue = new Bull("emailQueue", "redis://127.0.0.1:6379");
 const dummyQueue = new Bull("emailQueue", "redis://127.0.0.1:6379");
 
 // Remember to handle jobs when completed or failed
-// A job still in queue when it completed
+// A job still in queue when it finished
 const emailJobOptions: JobOptions = {
     removeOnComplete: true,
     removeOnFail: true,

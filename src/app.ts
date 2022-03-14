@@ -2,15 +2,14 @@ import { Server } from "@hapi/hapi";
 import "dotenv/config";
 import { connectDB } from "./db/connect";
 import { swaggerPlugins } from "./plugins/swagger";
-import { todoRoute } from "./routes/todo";
 import { initAgenda } from "./cron-job/agenda";
+import { authStrategyOptions } from "./plugins/jwt-auth";
+import { getRoutes } from "./routes";
 
 const server: Server = new Server({
     port: process.env.PORT,
     host: "localhost",
 });
-
-todoRoute(server);
 
 const start = async (): Promise<void> => {
     try {
@@ -18,7 +17,13 @@ const start = async (): Promise<void> => {
             console.log("Database is connected");
         });
 
+        await server.register(require("hapi-auth-jwt2"));
+        server.auth.strategy("jwt", "jwt", authStrategyOptions);
+        server.auth.default("jwt");
+
         await server.register(swaggerPlugins);
+
+        getRoutes(server);
 
         await server.start();
 
@@ -31,4 +36,4 @@ const start = async (): Promise<void> => {
 
 start();
 
-initAgenda();
+// initAgenda();

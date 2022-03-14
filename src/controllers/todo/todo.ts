@@ -1,5 +1,4 @@
-import { Request, ResponseObject, ResponseToolkit } from "@hapi/hapi";
-import Joi from "joi";
+import { ResponseObject, ResponseToolkit } from "@hapi/hapi";
 import mongoose from "mongoose";
 import { TodoModel, ITodo } from "../../models/Todo";
 import { RequestInterface } from "../../interfaces/request";
@@ -10,13 +9,18 @@ export const createTodo = async (
     h: ResponseToolkit
 ): Promise<ResponseObject> => {
     try {
-        const todo: ITodo = <ITodo>request.payload;
+        const todo = <ITodo>request.payload;
+        const userId = request.auth.credentials.id;
+
+        todo.createdBy = userId;
+
+        // console.log(request.auth);
 
         const newTodo: ITodo = await TodoModel.create(todo);
 
         await addEmailToQueue(newTodo);
 
-        await addDummyToQueue(newTodo);
+        // await addDummyToQueue(newTodo);
 
         return h.response(newTodo).code(201);
     } catch (error) {
@@ -29,11 +33,15 @@ export const getAllTodos = async (
     h: ResponseToolkit
 ): Promise<ResponseObject> => {
     try {
+        const userId = request.auth.credentials.id;
+
         const page = Number(request.query.page) || 1;
         const limit = Number(request.query.limit) || 5;
         const skip = (page - 1) * limit;
 
-        const todos = await TodoModel.find({}).skip(skip).limit(limit);
+        const todos = await TodoModel.find({ createdBy: userId })
+            .skip(skip)
+            .limit(limit);
         const count = await TodoModel.count();
 
         return h.response({
@@ -54,6 +62,7 @@ export const getTodoById = async (
 ): Promise<ResponseObject> => {
     try {
         const todoId = request.params.id;
+        const userId = request.auth.credentials.id;
 
         const isValid = mongoose.Types.ObjectId.isValid(todoId);
 
@@ -61,7 +70,10 @@ export const getTodoById = async (
             return h.response({ msg: "TodoId is invalid" }).code(400);
         }
 
-        const todo = await TodoModel.findById(todoId);
+        const todo = await TodoModel.findOne({
+            _id: todoId,
+            createdBy: userId,
+        });
 
         if (!todo) {
             return h.response({ msg: "Todo not found" }).code(404);
@@ -79,6 +91,7 @@ export const deleteTodo = async (
 ): Promise<ResponseObject> => {
     try {
         const todoId = request.params.id;
+        const userId = request.auth.credentials.id;
 
         const isValid = mongoose.Types.ObjectId.isValid(todoId);
 
@@ -88,6 +101,7 @@ export const deleteTodo = async (
 
         const todo = await TodoModel.findOneAndRemove({
             _id: todoId,
+            createdBy: userId,
         });
 
         if (!todo) {
@@ -106,6 +120,7 @@ export const updateTodo = async (
 ): Promise<ResponseObject> => {
     try {
         const todoId = request.params.id;
+        const userId = request.auth.credentials.id;
 
         const isValid = mongoose.Types.ObjectId.isValid(todoId);
 
@@ -116,6 +131,7 @@ export const updateTodo = async (
         const todo = await TodoModel.findOneAndUpdate(
             {
                 _id: todoId,
+                createdBy: userId,
             },
             <ITodo>request.payload,
             {
