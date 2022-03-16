@@ -1,6 +1,7 @@
 import * as Bcrypt from "bcryptjs";
 import { IUser } from "../models/User";
 import * as Jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 export const hashPassword = async (password: string) => {
     const salt = await Bcrypt.genSalt(10);
@@ -23,4 +24,8 @@ export const generateToken = (user: IUser) => {
 
 export const decodeToken = (token: string) => {
     return Jwt.decode(token);
+};
+
+export const isMongooseObjectId = (id: string) => {
+    return mongoose.Types.ObjectId.isValid(id);
 };

@@ -1,5 +1,4 @@
 import { ResponseToolkit } from "@hapi/hapi";
-import Joi from "joi";
 import { RequestInterface } from "../interfaces/request";
 import { UserModel } from "../models/User";
 

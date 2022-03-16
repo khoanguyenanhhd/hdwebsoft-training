@@ -16,7 +16,7 @@ export const emailProcess = async (job: Job) => {
         const info = await transporter.sendMail({
             from: process.env.MAIL_USERNAME,
             to: process.env.MAIL_USERNAME,
-            subject: "Created a todo",
+            subject: "Created data",
             text: JSON.stringify(job.data),
             html: `<h1>${JSON.stringify(job.data)}</h1>`,
         });

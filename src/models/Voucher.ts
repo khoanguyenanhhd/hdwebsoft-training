@@ -27,7 +27,7 @@ const voucherSchema = new mongoose.Schema(
             require: true,
         },
     },
-    { timestamps: true }
+    { timestamps: true, optimisticConcurrency: true }
 );
 
 export const VoucherModel = mongoose.model<IVoucher>("Voucher", voucherSchema);

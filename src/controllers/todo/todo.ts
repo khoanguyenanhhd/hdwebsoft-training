@@ -1,8 +1,8 @@
 import { ResponseObject, ResponseToolkit } from "@hapi/hapi";
-import mongoose from "mongoose";
 import { TodoModel, ITodo } from "../../models/Todo";
 import { RequestInterface } from "../../interfaces/request";
-import { addEmailToQueue, addDummyToQueue } from "../../queues/bull";
+import { addEmailToQueue } from "../../queues/bull";
+import { isMongooseObjectId } from "../../utils/helper";
 
 export const createTodo = async (
     request: RequestInterface,
@@ -19,8 +19,6 @@ export const createTodo = async (
         const newTodo: ITodo = await TodoModel.create(todo);
 
         await addEmailToQueue(newTodo);
-
-        // await addDummyToQueue(newTodo);
 
         return h.response(newTodo).code(201);
     } catch (error) {
@@ -64,9 +62,7 @@ export const getTodoById = async (
         const todoId = request.params.id;
         const userId = request.auth.credentials.id;
 
-        const isValid = mongoose.Types.ObjectId.isValid(todoId);
-
-        if (!isValid) {
+        if (!isMongooseObjectId(todoId)) {
             return h.response({ msg: "TodoId is invalid" }).code(400);
         }
 
@@ -93,9 +89,7 @@ export const deleteTodo = async (
         const todoId = request.params.id;
         const userId = request.auth.credentials.id;
 
-        const isValid = mongoose.Types.ObjectId.isValid(todoId);
-
-        if (!isValid) {
+        if (!isMongooseObjectId(todoId)) {
             return h.response({ msg: "TodoId is invalid" }).code(400);
         }
 
@@ -122,9 +116,7 @@ export const updateTodo = async (
         const todoId = request.params.id;
         const userId = request.auth.credentials.id;
 
-        const isValid = mongoose.Types.ObjectId.isValid(todoId);
-
-        if (!isValid) {
+        if (!isMongooseObjectId(todoId)) {
             return h.response({ msg: "TodoId is invalid" }).code(400);
         }
 
