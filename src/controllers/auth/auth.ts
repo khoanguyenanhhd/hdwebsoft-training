@@ -77,7 +77,7 @@ export const login = async (
                 .response({
                     msg: "Password is invalid",
                 })
-                .code(404);
+                .code(400);
         }
 
         const token = generateToken(user);
