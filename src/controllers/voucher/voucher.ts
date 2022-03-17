@@ -6,6 +6,7 @@ import { IVoucher, VoucherModel } from "../../models/Voucher";
 import * as uuid from "uuid";
 import { addEmailToQueue } from "../../queues/bull";
 import { isMongooseObjectId } from "../../utils/helper";
+import { assert } from "console";
 
 export const createVoucher = async (
     request: RequestInterface,
@@ -21,7 +22,7 @@ export const createVoucher = async (
 
         const event = await EventModel.findById(eventId);
         if (!event) {
-            return h.response({ msg: "Event not found" }).code(400);
+            return h.response({ msg: "Event not found" }).code(404);
         }
 
         const session = await mongoose.startSession();
