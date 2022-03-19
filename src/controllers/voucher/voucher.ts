@@ -6,7 +6,6 @@ import { IVoucher, VoucherModel } from "../../models/Voucher";
 import * as uuid from "uuid";
 import { addEmailToQueue } from "../../queues/bull";
 import { isMongooseObjectId } from "../../utils/helper";
-import { assert } from "console";
 
 export const createVoucher = async (
     request: RequestInterface,
@@ -26,7 +25,6 @@ export const createVoucher = async (
         }
 
         const session = await mongoose.startSession();
-
         try {
             const transactionResult: any = await session.withTransaction(
                 async () => {
@@ -44,7 +42,7 @@ export const createVoucher = async (
                                 { session: session }
                             );
 
-                            await EventModel.updateOne(
+                            await EventModel.findOneAndUpdate(
                                 {
                                     _id: eventForUpdating._id,
                                 },
@@ -55,6 +53,16 @@ export const createVoucher = async (
                                     session: session,
                                 }
                             );
+
+                            const updateEvent = await EventModel.findById(
+                                eventForUpdating._id
+                            ).session(session);
+
+                            console.log(updateEvent.maxQuantity);
+
+                            if (updateEvent.maxQuantity < 0) {
+                                await session.abortTransaction();
+                            }
                         }
                     }
                 }
@@ -67,7 +75,7 @@ export const createVoucher = async (
 
                 await addEmailToQueue(latestVoucher);
 
-                return h.response({ latestVoucher }).code(201);
+                return h.response(latestVoucher).code(201);
             }
 
             console.log("No more voucher");

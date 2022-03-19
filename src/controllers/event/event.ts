@@ -1,4 +1,5 @@
 import { ResponseObject, ResponseToolkit } from "@hapi/hapi";
+import mongoose from "mongoose";
 import { RequestInterface } from "../../interfaces/request";
 import { EventModel, IEvent } from "../../models/Event";
 import { isMongooseObjectId } from "../../utils/helper";
@@ -36,33 +37,65 @@ export const accessEvent = async (
             return h.response({ msg: "Event not found" }).code(404);
         }
 
-        // Return 409 when another user is editing
-        if (
-            event.lockedBy.toString() !== userId &&
-            event.lockedExp > new Date()
-        ) {
-            return h
-                .response({ msg: "Another user is editing this event" })
-                .code(409);
+        const session = await mongoose.startSession();
+        let isLockedByAnotherUser = false;
+        let isLockedByCurrentUser = false;
+
+        try {
+            const transactionResult: any = await session.withTransaction(
+                async () => {
+                    const eventForUpdating = await EventModel.findById(eventId);
+
+                    if (
+                        eventForUpdating.lockedBy.toString() !== userId &&
+                        eventForUpdating.lockedExp > new Date()
+                    ) {
+                        isLockedByAnotherUser = true;
+                    } else if (
+                        eventForUpdating.lockedBy.toString() === userId &&
+                        eventForUpdating.lockedExp > new Date()
+                    ) {
+                        isLockedByCurrentUser = true;
+                    } else {
+                        const lockedAt = new Date();
+                        const lockedExp = new Date(lockedAt);
+                        lockedExp.setMinutes(lockedExp.getMinutes() + 5);
+
+                        await EventModel.updateOne(
+                            { _id: eventId },
+                            {
+                                lockedBy: userId,
+                                lockedAt: lockedAt,
+                                lockedExp: lockedExp,
+                            },
+                            {
+                                session: session,
+                            }
+                        );
+                    }
+                }
+            );
+
+            if (!transactionResult && isLockedByAnotherUser) {
+                return h
+                    .response({ msg: "Another user is editing this event" })
+                    .code(409);
+            }
+
+            if (!transactionResult && isLockedByCurrentUser) {
+                return h
+                    .response({ msg: "You are currently editing this event" })
+                    .code(409);
+            }
+
+            const event = await EventModel.findById(eventId);
+
+            return h.response(event).code(200);
+        } catch (error) {
+            return h.response(error).code(500);
+        } finally {
+            session.endSession();
         }
-
-        const lockedAt = new Date();
-        const lockedExp = new Date(lockedAt);
-        lockedExp.setMinutes(lockedExp.getMinutes() + 5);
-
-        const updateEvent = await EventModel.findOneAndUpdate(
-            {
-                _id: eventId,
-            },
-            {
-                lockedBy: userId,
-                lockedAt: lockedAt,
-                lockedExp: lockedExp,
-            },
-            { new: true }
-        );
-
-        return h.response(updateEvent!).code(200);
     } catch (error) {
         return h.response(error).code(500);
     }
@@ -86,54 +119,77 @@ export const releaseEvent = async (
             return h.response({ msg: "Event not found" }).code(404);
         }
 
-        // Locked by another user and over time
-        if (
-            event.lockedBy.toString() !== userId &&
-            event.lockedExp < new Date()
-        ) {
-            return h
-                .response({
-                    msg: "Need to access before releasing",
-                })
-                .code(400);
-        }
+        const session = await mongoose.startSession();
+        let isLockedByAnotherUserAndOverTime = false;
+        let isLockedByAnotherUserAndInTime = false;
 
-        // Locked by another user and still in time
-        if (
-            event.lockedBy.toString() !== userId &&
-            event.lockedExp > new Date()
-        ) {
-            return h
-                .response({
-                    msg: "Can not release because the access belong to another user",
-                })
-                .code(400);
-        }
+        let isLockedByCurrentUserAndOverTime = false;
 
-        // Locked by current user and over time
-        if (
-            event.lockedBy.toString() === userId &&
-            event.lockedExp < new Date()
-        ) {
-            return h
-                .response({
-                    msg: "Can not release because your access is over time",
-                })
-                .code(400);
-        }
+        try {
+            const transactionResult: any = await session.withTransaction(
+                async () => {
+                    const eventForUpdating = await EventModel.findById(eventId);
 
-        // Locked by current user and still in time
-        const lockedExp = new Date();
-        await EventModel.updateOne(
-            {
-                _id: eventId,
-            },
-            {
-                lockedExp: lockedExp,
+                    if (
+                        eventForUpdating.lockedBy.toString() !== userId &&
+                        eventForUpdating.lockedExp < new Date()
+                    ) {
+                        isLockedByAnotherUserAndOverTime = true;
+                    } else if (
+                        eventForUpdating.lockedBy.toString() !== userId &&
+                        eventForUpdating.lockedExp > new Date()
+                    ) {
+                        isLockedByAnotherUserAndInTime = true;
+                    } else if (
+                        event.lockedBy.toString() === userId &&
+                        event.lockedExp < new Date()
+                    ) {
+                        isLockedByCurrentUserAndOverTime = true;
+                    } else {
+                        const lockedExp = new Date();
+                        await EventModel.updateOne(
+                            {
+                                _id: eventId,
+                            },
+                            {
+                                lockedExp: lockedExp,
+                            },
+                            {
+                                session: session,
+                            }
+                        );
+                    }
+                }
+            );
+
+            if (!transactionResult && isLockedByAnotherUserAndOverTime) {
+                return h
+                    .response({ msg: "Need to access before releasing" })
+                    .code(400);
             }
-        );
 
-        return h.response().code(204);
+            if (!transactionResult && isLockedByAnotherUserAndInTime) {
+                return h
+                    .response({
+                        msg: "Can not release because the access belong to another user",
+                    })
+                    .code(400);
+            }
+
+            if (!transactionResult && isLockedByCurrentUserAndOverTime) {
+                return h
+                    .response({
+                        msg: "Can not release because your access is over time",
+                    })
+                    .code(400);
+            }
+
+            return h.response().code(204);
+        } catch (error) {
+            return h.response(error).code(500);
+        } finally {
+            session.endSession();
+        }
     } catch (error) {
         return h.response(error).code(500);
     }
@@ -157,54 +213,79 @@ export const maintainEvent = async (
             return h.response({ msg: "Event not found" }).code(404);
         }
 
-        // Locked by another user and over time
-        if (
-            event.lockedBy.toString() !== userId &&
-            event.lockedExp < new Date()
-        ) {
-            return h
-                .response({
-                    msg: "Need to access before maintain",
-                })
-                .code(400);
+        const session = await mongoose.startSession();
+        let isLockedByAnotherUserAndOverTime = false;
+        let isLockedByAnotherUserAndInTime = false;
+
+        let isLockedByCurrentUserAndOverTime = false;
+
+        try {
+            const transactionResult: any = await session.withTransaction(
+                async () => {
+                    const eventForUpdating = await EventModel.findById(eventId);
+
+                    if (
+                        eventForUpdating.lockedBy.toString() !== userId &&
+                        eventForUpdating.lockedExp < new Date()
+                    ) {
+                        isLockedByAnotherUserAndOverTime = true;
+                    } else if (
+                        eventForUpdating.lockedBy.toString() !== userId &&
+                        eventForUpdating.lockedExp > new Date()
+                    ) {
+                        isLockedByAnotherUserAndInTime = true;
+                    } else if (
+                        event.lockedBy.toString() === userId &&
+                        event.lockedExp < new Date()
+                    ) {
+                        isLockedByCurrentUserAndOverTime = true;
+                    } else {
+                        const lockedExp = new Date();
+                        lockedExp.setMinutes(lockedExp.getMinutes() + 5);
+
+                        await EventModel.updateOne(
+                            {
+                                _id: eventId,
+                            },
+                            {
+                                lockedExp: lockedExp,
+                            },
+                            {
+                                session: session,
+                            }
+                        );
+                    }
+                }
+            );
+
+            if (!transactionResult && isLockedByAnotherUserAndOverTime) {
+                return h
+                    .response({ msg: "Need to access before maintain" })
+                    .code(400);
+            }
+
+            if (!transactionResult && isLockedByAnotherUserAndInTime) {
+                return h
+                    .response({
+                        msg: "Can not maintain because the access belong to another user",
+                    })
+                    .code(400);
+            }
+
+            if (!transactionResult && isLockedByCurrentUserAndOverTime) {
+                return h
+                    .response({
+                        msg: "Can not maintain because your access is over time",
+                    })
+                    .code(400);
+            }
+
+            return h.response().code(204);
+        } catch (error) {
+            return h.response(error).code(500);
+        } finally {
+            session.endSession();
         }
-
-        // Locked by another user and still in time
-        if (
-            event.lockedBy.toString() !== userId &&
-            event.lockedExp > new Date()
-        ) {
-            return h
-                .response({
-                    msg: "Can not maintain because the access belong to another user",
-                })
-                .code(400);
-        }
-
-        // Locked by current user and over time
-        if (
-            event.lockedBy.toString() === userId &&
-            event.lockedExp < new Date()
-        ) {
-            return h
-                .response({
-                    msg: "Can not maintain because your access is over time",
-                })
-                .code(400);
-        }
-
-        // Locked by current user and still in time
-        const updateEvent = await EventModel.findOneAndUpdate(
-            {
-                _id: eventId,
-            },
-            {
-                lockedExp: new Date(),
-            },
-            { new: true }
-        );
-
-        return h.response(updateEvent!).code(200);
     } catch (error) {
         return h.response(error).code(500);
     }
